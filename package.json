@@ -1,0 +1,26 @@
+{
+	"author": {
+		"name": "Aritz Beobide-Cardinal",
+		"email": "aritz@aritzcracker.ca"
+	},
+	"browser": "browser.js",
+	"bugs": {
+		"url": "https://github.com/ARitz-Cracker/buffer-lite/issues"
+	},
+	"dependencies": {},
+	"description": "Lightweight buffer library for the browser",
+	"devDependencies": {},
+	"homepage": "https://github.com/ARitz-Cracker/buffer-lite",
+	"license": "GPL3",
+	"main": "index.js",
+	"name": "buffer-lite",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ARitz-Cracker/buffer-lite.git"
+	},
+	"scripts": {},
+	"version": "0.1.0",
+	"browserRequirifier":{
+		"include":[]
+	}
+  }
