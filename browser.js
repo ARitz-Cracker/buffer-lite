@@ -240,16 +240,16 @@ class Buffer extends Uint8Array{
 		return new Buffer(super.map(...args));
 	}
 	readBigInt64BE(offset = 0){
-		return buffer_readBigInt64BE(this, offset);
+		return BigInt(buffer_readBigInt64BE(this, offset));
 	}
 	readBigInt64LE(offset = 0){
-		return buffer_readBigInt64LE(this, offset);
+		return BigInt(buffer_readBigInt64LE(this, offset));
 	}
 	readBigUInt64BE(offset = 0){
-		return buffer_readBigUInt64BE(this, offset);
+		return BigInt(buffer_readBigUInt64BE(this, offset));
 	}
 	readBigUInt64LE(offset = 0){
-		return buffer_readBigUInt64LE(this, offset);
+		return BigInt(buffer_readBigUInt64LE(this, offset));
 	}
 	readDoubleBE(offset = 0){
 		// Idk how to actually do this so JS will do it for me lol;
@@ -356,20 +356,20 @@ class Buffer extends Uint8Array{
 		return result;
 	}
 	readUIntBE(offset, byteLength){
-		let shift = 24;
+		let mul = 1;
 		let val = 0;
-		for(let i = 0; i < byteLength; i += 1){
-			val += buff[offset + i] << shift;
-			shift -= 8;
+		for(let i = byteLength - 1; i >= 0; i -= 1){
+			val += this[offset + i] * mul;
+			mul *= 0x100;
 		}
 		return val;
 	}
 	readUIntLE(offset, byteLength){
-		let shift = 0;
+		let mul = 1;
 		let val = 0;
 		for(let i = 0; i < byteLength; i += 1){
-			val += buff[offset + i] << shift;
-			shift += 8;
+			val += this[offset + i] * mul;
+			mul *= 0x100;
 		}
 		return val;
 	}
@@ -450,7 +450,7 @@ class Buffer extends Uint8Array{
 				return str;
 			}
 			default:
-				throw new Error("Unknown encoding: " + byteOffsetOrEncoding);
+				throw new Error("Unknown encoding: " + encoding);
 		}
 	}
 	write(string, offset = 0, length = this.length - offset, encoding = "utf8"){
@@ -587,18 +587,18 @@ class Buffer extends Uint8Array{
 		return offset + 4;
 	}
 	writeUIntBE(value, offset, byteLength){
-		let shift = 24;
+		let mul = 0x100 ** byteLength;
 		for(let i = 0; i < byteLength; i += 1){
-			this[offset + i] = value >> shift;
-			shift -= 8;
+			mul /= 0x100;
+			this[offset + i] = Math.floor(value / mul) & 255;
 		}
 		return offset + byteLength;
 	}
 	writeUIntLE(value, offset, byteLength){
-		let shift = 0;
+		let mul = 1;
 		for(let i = 0; i < byteLength; i += 1){
-			this[offset + i] = value >> shift;
-			shift += 8;
+			this[offset + i] = Math.floor(value / mul) & 255;
+			mul *= 0x100;
 		}
 		return offset + byteLength;
 	}
@@ -676,6 +676,8 @@ Buffer.from = function(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding){
 		return new Buffer(thing.data);
 	}else if(typeof thing === "string"){
 		switch(byteOffsetOrEncodingOrFill){
+			case undefined:
+			case null:
 			case "utf8":
 			case "utf-8":
 				return new Buffer(encoder.encode(thing));
