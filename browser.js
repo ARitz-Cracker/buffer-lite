@@ -414,7 +414,7 @@ class Buffer extends Uint8Array{
 	}
 	toJSON(){
 		return{
-			type: "Buffer",
+			type: "buffer",
 			data: [...this]
 		}
 	}
@@ -670,7 +670,7 @@ Buffer.from = function(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding){
 	}else if(thing instanceof ArrayBuffer){
 		return new Buffer(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding);
 	}else if(typeof thing === "object"){
-		if(thing.type !== "buffer" || Array.isArray(thing.data)){
+		if(thing.type !== "buffer" || !Array.isArray(thing.data)){
 			throw new TypeError("Given a strange object, not sure what to do");
 		}
 		return new Buffer(thing.data);
