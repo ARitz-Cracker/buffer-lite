@@ -333,26 +333,26 @@ class Buffer extends Uint8Array{
 	}
 	readUInt16BE(offset = 0){
 		let result = this[offset + 1];
-		result += this[offset] << 8n;
+		result += this[offset] << 8;
 		return result;
 	}
 	readUInt16LE(offset = 0){
 		let result = this[offset];
-		result += this[offset + 1] << 8n;
+		result += this[offset + 1] << 8;
 		return result;
 	}
 	readUInt32BE(offset = 0){
 		let result = this[offset + 3];
-		result += this[offset + 2] << 8n;
-		result += this[offset + 1] << 16n;
-		result += this[offset] << 24n;
+		result += this[offset + 2] << 8;
+		result += this[offset + 1] << 16;
+		result += this[offset] << 24;
 		return result;
 	}
 	readUInt32LE(offset = 0){
 		let result = this[offset];
-		result += this[offset + 1] << 8n;
-		result += this[offset + 2] << 16n;
-		result += this[offset + 3] << 24n;
+		result += this[offset + 1] << 8;
+		result += this[offset + 2] << 16;
+		result += this[offset + 3] << 24;
 		return result;
 	}
 	readUIntBE(offset, byteLength){
