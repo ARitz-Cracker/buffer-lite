@@ -492,7 +492,7 @@ class Buffer extends Uint8Array{
 	writeFloatBE(value, offset = 0){
 		// Again, don't know how to do this myself!
 		conversionBufferFloat32[0] = value;
-		conversionBuffer8Bytes.reverse();
+		conversionBuffer4Bytes.reverse();
 		for(let i = 0; i < 4; i += 1){
 			this[offset + i] = conversionBuffer4Bytes[i];
 		}
