@@ -5,7 +5,7 @@ const validEncodings = {
 	"latin1": true,
 	"base64": true,
 	"hex": true,
-	"ascii": true, // alias of latin1
+	"ascii": true,
 	"binary": true, // alias of latin1
 	"ucs2": true // alias of utf16le
 }
@@ -609,22 +609,54 @@ Buffer.alloc = function(size = 0){
 }
 Buffer.allocUnsafe = Buffer.alloc;
 Buffer.allocUnsafeSlow = Buffer.alloc;
+const calculateUTF8LengthFromUTF16String = function(str = ""){
+	let result = 0;
+	for(let i = 0; i < str.length; i += 1){
+		const codePoint = str.codePointAt(i);
+		if(codePoint <= 0x7f){
+			result += 1;
+			continue;
+		}
+		if(codePoint <= 0x7ff){
+			result += 2;
+			continue;
+		}
+		if(codePoint <= 0xffff){
+			result += 3;
+			continue;
+		}
+		// This character now bigger than 16 bits, so we should skip one string position
+		i += 1;
+		// Fun fact: In the original 1993 UTF8 spec, it could go up to 6 bytes!
+		// But since unicode codepoints were limited to 21 bits in 2003, the largest we should ever see is 4.
+		result += 4;
+	}
+	return result;
+}
+const calculateDecodedBase64Length = function(str = ""){
+	let result = str.length;
+	while(result > 1 && str[result - 1] === "=" ){
+		result -= 1;
+	}
+	return Math.floor(bytes * 0.75);
+}
 Buffer.byteLength = function(thing, encoding){
 	if(typeof thing === "string"){
-		switch(byteOffsetOrEncoding){
+		switch(encoding){
 			case "utf8":
 			case "utf-8":
-				return encoder.encode(thing).length;
+				return calculateUTF8LengthFromUTF16String(thing);
+			case "latin1":
+			case "binary":
+			case "ascii":
+				return thing.length;
 			case "utf16le":
 			case "utf-16le":
 			case "utf-16-le":
 			case "ucs2":
-			case "latin1":
-			case "binary":
-			case "ascii":
-				thing.length;
+				return thing.length * 2;
 			case "base64":
-				return atob(thing).length;
+				return calculateDecodedBase64Length(thing);
 			case "hex": {
 				return thing.length / 2;
 			}
@@ -660,7 +692,6 @@ Buffer.from = function(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding){
 		thing instanceof Buffer
 	){
 		return new Buffer(thing);
-
 	}else if(typeof thing === "number"){
 		const newBuffer = new Buffer(thing);
 		if(byteOffsetOrEncodingOrFill != null){
