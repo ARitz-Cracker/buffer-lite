@@ -333,26 +333,26 @@ class Buffer extends Uint8Array{
 	}
 	readUInt16BE(offset = 0){
 		let result = this[offset + 1];
-		result += this[offset] << 8n;
+		result += this[offset] << 8;
 		return result;
 	}
 	readUInt16LE(offset = 0){
 		let result = this[offset];
-		result += this[offset + 1] << 8n;
+		result += this[offset + 1] << 8;
 		return result;
 	}
 	readUInt32BE(offset = 0){
 		let result = this[offset + 3];
-		result += this[offset + 2] << 8n;
-		result += this[offset + 1] << 16n;
-		result += this[offset] << 24n;
+		result += this[offset + 2] << 8;
+		result += this[offset + 1] << 16;
+		result += this[offset] << 24;
 		return result;
 	}
 	readUInt32LE(offset = 0){
 		let result = this[offset];
-		result += this[offset + 1] << 8n;
-		result += this[offset + 2] << 16n;
-		result += this[offset + 3] << 24n;
+		result += this[offset + 1] << 8;
+		result += this[offset + 2] << 16;
+		result += this[offset + 3] << 24;
 		return result;
 	}
 	readUIntBE(offset, byteLength){
@@ -414,7 +414,7 @@ class Buffer extends Uint8Array{
 	}
 	toJSON(){
 		return{
-			type: "Buffer",
+			type: "buffer",
 			data: [...this]
 		}
 	}
@@ -701,7 +701,7 @@ Buffer.from = function(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding){
 	}else if(thing instanceof ArrayBuffer){
 		return new Buffer(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding);
 	}else if(typeof thing === "object"){
-		if(thing.type !== "buffer" || Array.isArray(thing.data)){
+		if(thing.type !== "buffer" || !Array.isArray(thing.data)){
 			throw new TypeError("Given a strange object, not sure what to do");
 		}
 		return new Buffer(thing.data);
