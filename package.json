@@ -19,7 +19,7 @@
 		"url": "git+https://github.com/ARitz-Cracker/buffer-lite.git"
 	},
 	"scripts": {},
-	"version": "0.1.3",
+	"version": "0.1.4",
 	"browserRequirifier":{
 		"include":[]
 	}

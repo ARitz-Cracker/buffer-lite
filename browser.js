@@ -681,9 +681,17 @@ Buffer.concat = function(list = [], totalLength){
 	const resultBuffer = Buffer.alloc(totalLength);
 	for(let i = 0; i < list.length; i += 1){
 		const buff = list[i];
-		buff.copy(resultBuffer, resultOffset);
+		if(!(buff instanceof Uint8Array)){
+			throw new TypeError("\"list[" + i + "]\" must be an instance of Buffer or Uint8Array");
+		}
+		if(!(buff instanceof Buffer)){
+			Buffer.prototype.copy.call(buff, resultBuffer, resultOffset);
+		}else{
+			buff.copy(resultBuffer, resultOffset);
+		}
 		resultOffset += buff.length;
 	}
+	return resultBuffer;
 }
 Buffer.from = function(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding){
 	if(
