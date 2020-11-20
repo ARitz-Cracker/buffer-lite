@@ -1,3 +1,4 @@
+const DEFAULT_POOL_SIZE = 8192;
 const validEncodings = {
 	"utf8": true,
 	"utf-8": true, // alias of utf8
@@ -10,6 +11,7 @@ const validEncodings = {
 	"ucs2": true // alias of utf16le
 }
 const conversionBuffer = new ArrayBuffer(8);
+const s_bufferPool = Symbol("bufferPool");
 
 const conversionBuffer8Bytes = new Uint8Array(conversionBuffer);
 const conversionBuffer4Bytes = new Uint8Array(conversionBuffer, 0, 4);
@@ -20,116 +22,22 @@ const conversionBufferFloat32 = new Float32Array(conversionBuffer, 0, 1);
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-let buffer_readBigInt64BE;
-let buffer_readBigInt64LE;
-let buffer_readBigUInt64BE;
-let buffer_readBigUInt64LE;
-let buffer_writeBigInt64BE;
-let buffer_writeBigInt64LE;
-let buffer_writeBigUInt64BE;
-let buffer_writeBigUInt64LE;
+const bigIntConsts = {};
 try{
-	// Is this terrible? Yes! But unfortunatly less than 90% of users have bigints at the time of writing
-	buffer_readBigInt64BE = new Function(`
-		const buffer = arguments[0];
-		const offset = arguments[1];
-		let result = buffer.readBigUInt64BE(offset);
-		if(result > 9223372036854775807n){
-			result -= 18446744073709551616n;
-		}
-		return result;
-	`);
-	buffer_readBigInt64LE = new Function(`
-		const buffer = arguments[0];
-		const offset = arguments[1];
-		let result = buffer.readBigUInt64LE(offset);
-		if(result > 9223372036854775807n){
-			result -= 18446744073709551616n;
-		}
-		return result;
-	`);
-	buffer_readBigUInt64BE = new Function(`
-		const buffer = arguments[0];
-		const offset = arguments[1];
-		let result = BigInt(buffer[offset + 7]);
-		result += BigInt(buffer[offset + 6]) << 8n;
-		result += BigInt(buffer[offset + 5]) << 16n;
-		result += BigInt(buffer[offset + 4]) << 24n;
-		result += BigInt(buffer[offset + 3]) << 32n;
-		result += BigInt(buffer[offset + 2]) << 40n;
-		result += BigInt(buffer[offset + 1]) << 48n;
-		result += BigInt(buffer[offset]) << 56n;
-		return result;
-	`);
-	buffer_readBigUInt64LE = new Function(`
-		const buffer = arguments[0];
-		const offset = arguments[1];
-		let result = BigInt(buffer[offset]);
-		result += BigInt(buffer[offset + 1]) << 8n;
-		result += BigInt(buffer[offset + 2]) << 16n;
-		result += BigInt(buffer[offset + 3]) << 24n;
-		result += BigInt(buffer[offset + 4]) << 32n;
-		result += BigInt(buffer[offset + 5]) << 40n;
-		result += BigInt(buffer[offset + 6]) << 48n;
-		result += BigInt(buffer[offset + 7]) << 56n;
-		return result;
-	`);
-	buffer_writeBigInt64BE = new Function(`
-		const buffer = arguments[0];
-		const value = arguments[1];
-		const offset = arguments[2];
-		if(value < 0){
-			value = 18446744073709551616n + value;
-		}
-		return buffer.writeBigUInt64BE(value, offset);
-	`);
-	buffer_writeBigInt64LE = new Function(`
-		const buffer = arguments[0];
-		const value = arguments[1];
-		const offset = arguments[2];
-		if(value < 0){
-			value = 18446744073709551616n + value;
-		}
-		return buffer.writeBigUInt64LE(value, offset);
-	`);
-	buffer_writeBigUInt64BE = new Function(`
-		const buffer = arguments[0];
-		const value = arguments[1];
-		const offset = arguments[2];
-		buffer[offset + 7] = Number(value & 255n);
-		buffer[offset + 6] = Number((value >> 8n) & 255n);
-		buffer[offset + 5] = Number((value >> 16n) & 255n);
-		buffer[offset + 4] = Number((value >> 24n) & 255n);
-		buffer[offset + 3] = Number((value >> 32n) & 255n);
-		buffer[offset + 2] = Number((value >> 40n) & 255n);
-		buffer[offset + 1] = Number((value >> 48n) & 255n);
-		buffer[offset] = Number((value >> 56n) & 255n);
-		return offset + 8;
-	`);
-	buffer_writeBigUInt64LE = new Function(`
-		const buffer = arguments[0];
-		const value = arguments[1];
-		const offset = arguments[2];
-		buffer[offset] = Number(value & 255n);
-		buffer[offset + 1] = Number((value >> 8n) & 255n);
-		buffer[offset + 2] = Number((value >> 16n) & 255n);
-		buffer[offset + 3] = Number((value >> 24n) & 255n);
-		buffer[offset + 4] = Number((value >> 32n) & 255n);
-		buffer[offset + 5] = Number((value >> 40n) & 255n);
-		buffer[offset + 6] = Number((value >> 48n) & 255n);
-		buffer[offset + 7] = Number((value >> 56n) & 255n);
-		return offset + 8;
-	`);
+	bigIntConsts["8"] = BigInt("8");
+	bigIntConsts["16"] = BigInt("16");
+	bigIntConsts["24"] = BigInt("24");
+	bigIntConsts["32"] = BigInt("32");
+	bigIntConsts["40"] = BigInt("40");
+	bigIntConsts["48"] = BigInt("48");
+	bigIntConsts["56"] = BigInt("56");
+	bigIntConsts["255"] = BigInt("255");
+	bigIntConsts["9223372036854775807"] = BigInt("9223372036854775807");
+	bigIntConsts["18446744073709551616"] = BigInt("18446744073709551616");
 }catch(ex){
 	// BigInts aren't supported here.
 }
-
 class Buffer extends Uint8Array{
-	/*
-	constructor(...args){
-		super(...args);
-	}
-	*/
 	compare(target, targetStart = 0, targetEnd = target.length, sourceStart = 0, sourceEnd = this.length){
 		let compareVal = 0;
 		let targetI = targetStart;
@@ -155,23 +63,55 @@ class Buffer extends Uint8Array{
 		return compareVal;
 	}
 	copy(target, targetStart = 0, sourceStart = 0, sourceEnd = this.length){
-		let copied = 0;
-		let targetI = targetStart;
-		for(let i = sourceStart; i < sourceEnd; i += 1){
-			target[targetI] = this[i];
-			targetI += 1;
-			copied += 1;
+		let source = sourceStart === 0 && sourceEnd === this.end ?
+			this : this.subarray(sourceStart, sourceEnd);
+		if((targetStart + source.length) > target.length){
+			source = source.subarray(0, source.length - (
+				(targetStart + source.length) - target.length
+			));
 		}
-		return copied;
+		target.set(source, targetStart);
+		return source.length;
 	}
 	equals(otherBuffer){
+		if(!(otherBuffer instanceof Uint8Array)){
+			throw new TypeError("The \"otherBuffer\" argument must be an instance of Buffer or Uint8Array.");
+		}
+		if(otherBuffer === this){
+			return true;
+		}
 		if(otherBuffer.length !== this.length){
 			return false;
 		}
-		// We might be able to optimize this using Uint32Arrays
-		for(let i = 0; i < this.length; i += 1){
-			if(this[i] !== otherBuffer[i]){
-				return false;
+		if(this.length === 0){
+			return true;
+		}
+		if(
+			this.length >= 4 &&
+			(this.byteOffset % 4) === 0 &&
+			(otherBuffer.byteOffset % 4) === 0
+		){
+			// Compare the buffers quicker if we can (4 bytes at a time)
+			// I would use Float64Arrays here, but then there's an issue with NaN
+			const uint32ArrayLength = this.length - (this.length % 4);
+			const thisUint32Array = new Uint32Array(this.buffer, this.byteOffset, uint32ArrayLength / 4);
+			const otherUint32Array = new Uint32Array(otherBuffer.buffer, otherBuffer.byteOffset, thisUint32Array.length);
+			for(let i = 0; i < thisUint32Array.length; i += 1){
+				if(thisUint32Array[i] !== otherUint32Array[i]){
+					return false;
+				}
+			}
+			// Compare the remaining 1-3 bytes if they exist
+			for(let i = uint32ArrayLength; i < this.length; i += 1){
+				if(this[i] !== otherBuffer[i]){
+					return false;
+				}
+			}
+		}else{
+			for(let i = 0; i < this.length; i += 1){
+				if(this[i] !== otherBuffer[i]){
+					return false;
+				}
 			}
 		}
 		return true;
@@ -182,6 +122,12 @@ class Buffer extends Uint8Array{
 		}else{
 			if(typeof value === "string"){
 				value = Buffer.from(value, encoding);
+			}
+			if(!(value instanceof Uint8Array)){
+				throw new TypeError("fill value must be a number, string, Buffer, or Uint8Array");
+			}
+			if(!(value instanceof Buffer)){
+				value = new Buffer(value);
 			}
 			let shouldCopy = end - start;
 			let copied = 0;
@@ -240,16 +186,40 @@ class Buffer extends Uint8Array{
 		return new Buffer(super.map(...args));
 	}
 	readBigInt64BE(offset = 0){
-		return BigInt(buffer_readBigInt64BE(this, offset));
+		let result = this.readBigUInt64BE(offset);
+		if(result > bigIntConsts["9223372036854775807"]){
+			result -= bigIntConsts["18446744073709551616"];
+		}
+		return result;
 	}
 	readBigInt64LE(offset = 0){
-		return BigInt(buffer_readBigInt64LE(this, offset));
+		let result = this.readBigUInt64LE(offset);
+		if(result > bigIntConsts["9223372036854775807"]){
+			result -= bigIntConsts["18446744073709551616"];
+		}
+		return result;
 	}
 	readBigUInt64BE(offset = 0){
-		return BigInt(buffer_readBigUInt64BE(this, offset));
+		let result = BigInt(this[offset + 7]);
+		result += BigInt(this[offset + 6]) << bigIntConsts["8"];
+		result += BigInt(this[offset + 5]) << bigIntConsts["16"];
+		result += BigInt(this[offset + 4]) << bigIntConsts["24"];
+		result += BigInt(this[offset + 3]) << bigIntConsts["32"];
+		result += BigInt(this[offset + 2]) << bigIntConsts["40"];
+		result += BigInt(this[offset + 1]) << bigIntConsts["48"];
+		result += BigInt(this[offset]) << bigIntConsts["56"];
+		return result;
 	}
 	readBigUInt64LE(offset = 0){
-		return BigInt(buffer_readBigUInt64LE(this, offset));
+		let result = BigInt(this[offset]);
+		result += BigInt(this[offset + 1]) << bigIntConsts["8"];
+		result += BigInt(this[offset + 2]) << bigIntConsts["16"];
+		result += BigInt(this[offset + 3]) << bigIntConsts["24"];
+		result += BigInt(this[offset + 4]) << bigIntConsts["32"];
+		result += BigInt(this[offset + 5]) << bigIntConsts["40"];
+		result += BigInt(this[offset + 6]) << bigIntConsts["48"];
+		result += BigInt(this[offset + 7]) << bigIntConsts["56"];
+		return result;
 	}
 	readDoubleBE(offset = 0){
 		// Idk how to actually do this so JS will do it for me lol;
@@ -374,7 +344,11 @@ class Buffer extends Uint8Array{
 		return val;
 	}
 	subarray(start = 0, end = this.length){
-		return new Buffer(super.subarray(start, end));
+		const subBuff = new Buffer(this.buffer, this.byteOffset + start, end - start);
+		if(this[s_bufferPool] !== undefined){
+			subBuff[s_bufferPool] = this[s_bufferPool];
+		}
+		return subBuff;
 	}
 	slice(start = 0, end = this.length){
 		return this.subarray(start, end);
@@ -462,16 +436,38 @@ class Buffer extends Uint8Array{
 		return length;
 	}
 	writeBigInt64BE(value, offset = 0){
-		return buffer_writeBigInt64BE(value, offset);
+		if(value < 0){
+			value = bigIntConsts["18446744073709551616"] + value;
+		}
+		return this.writeBigUInt64BE(value, offset);
 	}
 	writeBigInt64LE(value, offset = 0){
-		return buffer_writeBigInt64LE(value, offset);
+		if(value < 0){
+			value = bigIntConsts["18446744073709551616"] + value;
+		}
+		return this.writeBigUInt64LE(value, offset);
 	}
 	writeBigUInt64BE(value, offset = 0){
-		return buffer_writeBigUInt64BE(value, offset);
+		this[offset + 7] = Number(value & bigIntConsts["255"]);
+		this[offset + 6] = Number((value >> bigIntConsts["8"]) & bigIntConsts["255"]);
+		this[offset + 5] = Number((value >> bigIntConsts["16"]) & bigIntConsts["255"]);
+		this[offset + 4] = Number((value >> bigIntConsts["24"]) & bigIntConsts["255"]);
+		this[offset + 3] = Number((value >> bigIntConsts["32"]) & bigIntConsts["255"]);
+		this[offset + 2] = Number((value >> bigIntConsts["40"]) & bigIntConsts["255"]);
+		this[offset + 1] = Number((value >> bigIntConsts["48"]) & bigIntConsts["255"]);
+		this[offset] = Number((value >> bigIntConsts["56"]) & bigIntConsts["255"]);
+		return offset + 8;
 	}
 	writeBigUInt64LE(value, offset = 0){
-		return buffer_writeBigUInt64LE(value, offset);
+		this[offset] = Number(value & bigIntConsts["255"]);
+		this[offset + 1] = Number((value >> bigIntConsts["8"]) & bigIntConsts["255"]);
+		this[offset + 2] = Number((value >> bigIntConsts["16"]) & bigIntConsts["255"]);
+		this[offset + 3] = Number((value >> bigIntConsts["24"]) & bigIntConsts["255"]);
+		this[offset + 4] = Number((value >> bigIntConsts["32"]) & bigIntConsts["255"]);
+		this[offset + 5] = Number((value >> bigIntConsts["40"]) & bigIntConsts["255"]);
+		this[offset + 6] = Number((value >> bigIntConsts["48"]) & bigIntConsts["255"]);
+		this[offset + 7] = Number((value >> bigIntConsts["56"]) & bigIntConsts["255"]);
+		return offset + 8;
 	}
 	writeDoubleBE(value, offset = 0){
 		// Again, don't know how to do this myself!
@@ -603,12 +599,39 @@ class Buffer extends Uint8Array{
 		return offset + byteLength;
 	}
 }
-// TODO: Perhaps we should do pooling for more performance
-Buffer.alloc = function(size = 0){
+const fillBufferIfNotZero = function(buffer = new Buffer(0), fill = 0, encoding){
+	if(fill !== 0){
+		buffer.fill(fill, 0, buffer.length, encoding);
+	}
+	return buffer;
+}
+let bufferPool = new Buffer(DEFAULT_POOL_SIZE);
+let bufferPoolIndex = 0;
+Buffer.alloc = function(size = 0, fill = 0, encoding = "utf8"){
+	if(size === 0){
+		return new Buffer(0);
+	}
+	if(size >= (Buffer.poolSize / 2)){
+		return fillBufferIfNotZero(new Buffer(size), fill, encoding);
+	}
+	if((bufferPoolIndex + size) > Buffer.poolSize){
+		// We have no way of knowing when previous buffers are GC'd so we can re-use a pool, oh well
+		bufferPool = new Buffer(Buffer.poolSize);
+		bufferPoolIndex = 0;
+	}
+	const newBuff = bufferPool.subarray(bufferPoolIndex, bufferPoolIndex + size);
+	newBuff[s_bufferPool] = bufferPool;
+	bufferPoolIndex += size;
+	if((bufferPoolIndex % 4) !== 0){
+		// Keep the byte offsets a multiple of 4 so Buffer.prototype.equals is faster
+		bufferPoolIndex += 4 - (bufferPoolIndex % 4);
+	}
+	return fillBufferIfNotZero(newBuff, fill, encoding);
+}
+Buffer.allocUnsafe = Buffer.alloc; // Nothing unsafe about it since Buffers are always pre-zeroed on the browser
+Buffer.allocUnsafeSlow = function(size = 0){
 	return new Buffer(size);
 }
-Buffer.allocUnsafe = Buffer.alloc;
-Buffer.allocUnsafeSlow = Buffer.alloc;
 const calculateUTF8LengthFromUTF16String = function(str = ""){
 	let result = 0;
 	for(let i = 0; i < str.length; i += 1){
@@ -684,66 +707,60 @@ Buffer.concat = function(list = [], totalLength){
 		if(!(buff instanceof Uint8Array)){
 			throw new TypeError("\"list[" + i + "]\" must be an instance of Buffer or Uint8Array");
 		}
-		if(!(buff instanceof Buffer)){
-			Buffer.prototype.copy.call(buff, resultBuffer, resultOffset);
-		}else{
-			buff.copy(resultBuffer, resultOffset);
-		}
+		resultBuffer.set(buff, resultOffset);
 		resultOffset += buff.length;
 	}
 	return resultBuffer;
 }
-Buffer.from = function(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding){
-	if(
-		Array.isArray(thing) ||
-		thing instanceof Uint8Array ||
-		thing instanceof Buffer
-	){
-		return new Buffer(thing);
-	}else if(typeof thing === "number"){
-		const newBuffer = new Buffer(thing);
-		if(byteOffsetOrEncodingOrFill != null){
-			newBuffer.fill(byteOffsetOrEncodingOrFill, 0, thing, lengthOrEncoding);
+const invalidThingMessage = "The first argument must be of type string or an instance of Buffer, ArrayBuffer, or Array or an Array-like Object";
+Buffer.from = function(arrayOrBufferOrString, byteOffsetOrEncoding, lengthOrEncoding){
+	if(typeof arrayOrBufferOrString === "object"){
+		if(
+			// Apparently anything "array-like" can be used, this is my attempt to define what that means
+			typeof arrayOrBufferOrString.length === "number" &&
+			typeof arrayOrBufferOrString[Symbol.iterator] === "function"
+		){
+			return new Buffer(arrayOrBufferOrString);
 		}
-		return newBuffer;
-	}else if(thing instanceof ArrayBuffer){
-		return new Buffer(thing, byteOffsetOrEncodingOrFill, lengthOrEncoding);
-	}else if(typeof thing === "object"){
-		if(thing.type !== "buffer" || !Array.isArray(thing.data)){
-			throw new TypeError("Given a strange object, not sure what to do");
+		if(arrayOrBufferOrString instanceof ArrayBuffer){
+			return new Buffer(arrayOrBufferOrString, byteOffsetOrEncoding, lengthOrEncoding);
 		}
-		return new Buffer(thing.data);
-	}else if(typeof thing === "string"){
-		switch(byteOffsetOrEncodingOrFill){
+		if(arrayOrBufferOrString.type !== "Buffer" || !Array.isArray(arrayOrBufferOrString.data)){
+			throw new TypeError(invalidThingMessage);
+		}
+		return new Buffer(arrayOrBufferOrString.data);
+	}else if(typeof arrayOrBufferOrString === "string"){
+		switch(byteOffsetOrEncoding){
 			case undefined:
 			case null:
 			case "utf8":
 			case "utf-8":
-				return new Buffer(encoder.encode(thing));
+				return new Buffer(encoder.encode(arrayOrBufferOrString));
 			case "utf16le":
 			case "utf-16le":
 			case "utf-16-le":
 			case "ucs2":
 				return new Buffer(
-					(new Uint16Array([...thing].map(v => v.charCodeAt(0)))).buffer
+					(new Uint16Array([...arrayOrBufferOrString].map(v => v.charCodeAt(0)))).buffer
 				);
 			case "latin1":
 			case "binary":
 			case "ascii":
-				return new Buffer([...thing].map(v => v.charCodeAt(0)));
+				return new Buffer([...arrayOrBufferOrString].map(v => v.charCodeAt(0)));
 			case "base64":
-				return new Buffer([...atob(thing)].map(v => v.charCodeAt(0)));
+				return new Buffer([...atob(arrayOrBufferOrString)].map(v => v.charCodeAt(0)));
 			case "hex": {
-				const newBuffer = new Buffer(thing.length / 2);
-				for(let i = 0; i < thing.length; i += 2){
-					newBuffer[i / 2] = parseInt(thing.substring(i, i + 2), 16);
+				const newBuffer = new Buffer(arrayOrBufferOrString.length / 2);
+				for(let i = 0; i < arrayOrBufferOrString.length; i += 2){
+					newBuffer[i / 2] = parseInt(arrayOrBufferOrString.substring(i, i + 2), 16);
 				}
 				return newBuffer;
 			}
 			default:
-				throw new Error("Unknown encoding: " + byteOffsetOrEncodingOrFill);
+				throw new Error("Unknown encoding: " + byteOffsetOrEncoding);
 		}
 	}
+	throw new TypeError(invalidThingMessage);
 }
 Buffer.isBuffer = function(obj){
 	return obj instanceof Buffer;
@@ -751,7 +768,7 @@ Buffer.isBuffer = function(obj){
 Buffer.isEncoding = function(encoding){
 	return validEncodings[encoding] || false;
 }
-Buffer.poolSize = 0;
+Buffer.poolSize = DEFAULT_POOL_SIZE;
 
 module.exports = Buffer;
 if(globalThis.Buffer === undefined){
