@@ -9,18 +9,36 @@
 	},
 	"dependencies": {},
 	"description": "Lightweight buffer library for the browser",
-	"devDependencies": {},
+	"devDependencies": {
+		"chai": "^4.2.0",
+		"chai-as-promised": "^7.1.1",
+		"chai-eventemitter": "^1.1.1",
+		"eslint": "^6.6.0",
+		"eslint-plugin-mocha": "^8.0.0",
+		"mocha": "^6.2.2",
+		"nyc": "^14.1.1"
+	},
 	"homepage": "https://github.com/ARitz-Cracker/buffer-lite",
-	"license": "GPL3",
+	"license": "GPL-3.0",
 	"main": "index.js",
 	"name": "buffer-lite",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ARitz-Cracker/buffer-lite.git"
 	},
-	"scripts": {},
-	"version": "0.1.5",
-	"browserRequirifier":{
-		"include":[]
+	"scripts": {
+		"ide:refresh_coverage": "nyc --reporter=lcov mocha",
+		"test": "mocha",
+		"test:all": "TEST_EVERYTHING=y mocha",
+		"test:cov": "nyc --check-coverage --lines 100 --functions 100 --branches 100 --statements 100 mocha",
+		"test:final": "eslint . && npm run test:cov",
+		"test:lint": "eslint .",
+		"ci:start": "npm run test:final",
+		"ci:after": "nyc report --reporter=text-lcov | coveralls",
+		"prepublishOnly": "npm run test:final"
+	},
+	"version": "1.0.0",
+	"browserRequirifier": {
+		"include": []
 	}
 }
