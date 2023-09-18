@@ -42,16 +42,16 @@ try{
 // Derived from some very un-scientific tests
 const MAX_STRING_FROM_CHAR_CODE_ARGS = 32 * 1024;
 
-const stringFromCharCodes = function(/**@type {number[] | Uint8Array | Uint16Array}*/ charCodes) {
-	if (charCodes.length <= MAX_STRING_FROM_CHAR_CODE_ARGS) {
+const stringFromCharCodes = function(/** @type {number[] | Uint8Array | Uint16Array}*/ charCodes){
+	if(charCodes.length <= MAX_STRING_FROM_CHAR_CODE_ARGS){
 		return String.fromCharCode(...charCodes);
 	}
 	let result = "";
-	for (let i = 0; i < charCodes.length; i += MAX_STRING_FROM_CHAR_CODE_ARGS) {
+	for(let i = 0; i < charCodes.length; i += MAX_STRING_FROM_CHAR_CODE_ARGS){
 		result += String.fromCharCode(...charCodes.slice(i, i + MAX_STRING_FROM_CHAR_CODE_ARGS));
 	}
 	return result;
-}
+};
 
 class Buffer extends Uint8Array {
 	constructor(...args){
