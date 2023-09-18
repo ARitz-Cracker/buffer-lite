@@ -38,6 +38,21 @@ try{
 }catch(ex){
 	// BigInts aren't supported here.
 }
+
+// Derived from some very un-scientific tests
+const MAX_STRING_FROM_CHAR_CODE_ARGS = 32 * 1024;
+
+const stringFromCharCodes = function(/**@type {number[] | Uint8Array | Uint16Array}*/ charCodes) {
+	if (charCodes.length <= MAX_STRING_FROM_CHAR_CODE_ARGS) {
+		return String.fromCharCode(...charCodes);
+	}
+	let result = "";
+	for (let i = 0; i < charCodes.length; i += MAX_STRING_FROM_CHAR_CODE_ARGS) {
+		result += String.fromCharCode(...charCodes.slice(i, i + MAX_STRING_FROM_CHAR_CODE_ARGS));
+	}
+	return result;
+}
+
 class Buffer extends Uint8Array {
 	constructor(...args){
 		if(typeof args[0] === "string"){
@@ -472,14 +487,14 @@ class Buffer extends Uint8Array {
 			case "utf16le":
 			case "utf-16le":
 			case "ucs2":
-				return String.fromCharCode(...(new Uint16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2)));
+				return stringFromCharCodes(new Uint16Array(buf.buffer, buf.byteOffset, buf.byteLength / 2));
 			case "latin1":
 			case "binary":
-				return String.fromCharCode(...buf);
+				return stringFromCharCodes(buf);
 			case "ascii":
-				return String.fromCharCode(...buf.map(v => v & 127));
+				return stringFromCharCodes(buf.map(v => v & 127));
 			case "base64":
-				return btoa(String.fromCharCode(...buf));
+				return btoa(stringFromCharCodes(buf));
 			case "hex":{
 				let str = "";
 				for(let i = 0; i < buf.length; i += 1){
@@ -650,7 +665,7 @@ class Buffer extends Uint8Array {
 		return offset + 1;
 	}
 	writeUInt16BE(value, offset = 0){
-		if(offset < 0 || (offset + 2) >= this.length){
+		if(offset < 0 || (offset + 1) >= this.length){
 			throw new RangeError("Attempt to access memory outside buffer bounds");
 		}
 		this[offset + 1] = value & 255;
@@ -658,7 +673,7 @@ class Buffer extends Uint8Array {
 		return offset + 2;
 	}
 	writeUInt16LE(value, offset = 0){
-		if(offset < 0 || (offset + 2) >= this.length){
+		if(offset < 0 || (offset + 1) >= this.length){
 			throw new RangeError("Attempt to access memory outside buffer bounds");
 		}
 		this[offset] = value & 255;
@@ -666,7 +681,7 @@ class Buffer extends Uint8Array {
 		return offset + 2;
 	}
 	writeUInt32BE(value, offset = 0){
-		if(offset < 0 || (offset + 4) >= this.length){
+		if(offset < 0 || (offset + 3) >= this.length){
 			throw new RangeError("Attempt to access memory outside buffer bounds");
 		}
 		this[offset + 3] = value & 255;
@@ -676,7 +691,7 @@ class Buffer extends Uint8Array {
 		return offset + 4;
 	}
 	writeUInt32LE(value, offset = 0){
-		if(offset < 0 || (offset + 4) >= this.length){
+		if(offset < 0 || (offset + 3) >= this.length){
 			throw new RangeError("Attempt to access memory outside buffer bounds");
 		}
 		this[offset] = value & 255;

@@ -1294,6 +1294,12 @@ describe("Browser Buffer shim", function(){
 			const asciibuf = BrowserBuffer.from([104, 233, 108, 108, 111, 7]);
 			expect(asciibuf.toString.bind(asciibuf, "something")).to.throw();
 		});
+		it("can toString very long buffers", function(){
+			const array = new Array(1024 * 1024);
+			array.fill("a".charCodeAt(0));
+			const asciibuf = BrowserBuffer.from(array);
+			expect(asciibuf.toString("ascii")).to.equal("a".repeat(1024 * 1024));
+		});
 	});
 	describe("Buffer#write", function(){
 		it("works", function(){
