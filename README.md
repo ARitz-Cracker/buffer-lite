@@ -8,7 +8,7 @@ This package was originally created in 2020 under the belief that the standard `
 
 * Using the global `atob` and `btoa` functions for base-64 conversion
 * Using the native `TextEncoder` and `TextDecoder` classes for utf8 conversion
-* Using the magic of spread-operators to reduce/eliminate `String.fromCharCode` loops for ascii/latin1 encoding
+* Using the magic of spread-operators to eliminate `String.fromCharCode` loops (for small buffers) during text encoding.
 
 ## What version of NodeJS did you write this in mind?
 
