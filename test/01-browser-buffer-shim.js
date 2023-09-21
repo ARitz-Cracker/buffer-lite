@@ -1,5 +1,6 @@
 /* eslint-disable prefer-arrow-callback */
 /* eslint-disable no-magic-numbers */
+/* global BigInt */
 const chai = require("chai");
 chai.use(require("chai-as-promised"));
 chai.use(require("chai-eventemitter"));
@@ -1317,56 +1318,56 @@ describe("Browser Buffer shim", function(){
 		it("matches the NodeJS implementation", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
 			const nodeBuffer = Buffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigInt64BE(1337n)).to.equal(nodeBuffer.writeBigInt64BE(1337n));
+			expect(browserBuffer.writeBigInt64BE(BigInt("1337"))).to.equal(nodeBuffer.writeBigInt64BE(BigInt("1337")));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
-			expect(browserBuffer.writeBigInt64BE(-1337n, 2)).to.equal(nodeBuffer.writeBigInt64BE(-1337n, 2));
+			expect(browserBuffer.writeBigInt64BE(BigInt("-1337"), 2)).to.equal(nodeBuffer.writeBigInt64BE(BigInt("-1337"), 2));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
 		});
 		it("throws an error if writing out of bounds", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigInt64BE.bind(browserBuffer, 1337n, 9)).to.throw();
+			expect(browserBuffer.writeBigInt64BE.bind(browserBuffer, BigInt("1337"), 9)).to.throw();
 		});
 	});
 	describe("Buffer#writeBigInt64LE", function(){
 		it("matches the NodeJS implementation", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
 			const nodeBuffer = Buffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigInt64LE(1337n)).to.equal(nodeBuffer.writeBigInt64LE(1337n));
+			expect(browserBuffer.writeBigInt64LE(BigInt("1337"))).to.equal(nodeBuffer.writeBigInt64LE(BigInt("1337")));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
-			expect(browserBuffer.writeBigInt64LE(-1337n, 2)).to.equal(nodeBuffer.writeBigInt64LE(-1337n, 2));
+			expect(browserBuffer.writeBigInt64LE(BigInt("-1337"), 2)).to.equal(nodeBuffer.writeBigInt64LE(BigInt("-1337"), 2));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
 		});
 		it("throws an error if writing out of bounds", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigInt64LE.bind(browserBuffer, 1337n, 9)).to.throw();
+			expect(browserBuffer.writeBigInt64LE.bind(browserBuffer, BigInt("1337"), 9)).to.throw();
 		});
 	});
 	describe("Buffer#writeBigUInt64BE", function(){
 		it("matches the NodeJS implementation", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
 			const nodeBuffer = Buffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigUInt64BE(1337n)).to.equal(nodeBuffer.writeBigUInt64BE(1337n));
+			expect(browserBuffer.writeBigUInt64BE(BigInt("1337"))).to.equal(nodeBuffer.writeBigUInt64BE(BigInt("1337")));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
-			expect(browserBuffer.writeBigUInt64BE(1337n, 2)).to.equal(nodeBuffer.writeBigUInt64BE(1337n, 2));
+			expect(browserBuffer.writeBigUInt64BE(BigInt("1337"), 2)).to.equal(nodeBuffer.writeBigUInt64BE(BigInt("1337"), 2));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
 		});
 		it("throws an error if writing out of bounds", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigInt64BE.bind(browserBuffer, 1337n, 9)).to.throw();
+			expect(browserBuffer.writeBigInt64BE.bind(browserBuffer, BigInt("1337"), 9)).to.throw();
 		});
 	});
 	describe("Buffer#writeBigUInt64LE", function(){
 		it("matches the NodeJS implementation", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
 			const nodeBuffer = Buffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigUInt64LE(1337n)).to.equal(nodeBuffer.writeBigUInt64LE(1337n));
+			expect(browserBuffer.writeBigUInt64LE(BigInt("1337"))).to.equal(nodeBuffer.writeBigUInt64LE(BigInt("1337")));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
-			expect(browserBuffer.writeBigUInt64LE(1337n, 2)).to.equal(nodeBuffer.writeBigUInt64LE(1337n, 2));
+			expect(browserBuffer.writeBigUInt64LE(BigInt("1337"), 2)).to.equal(nodeBuffer.writeBigUInt64LE(BigInt("1337"), 2));
 			expect(browserBuffer).to.deep.equal(nodeBuffer);
 		});
 		it("throws an error if writing out of bounds", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
-			expect(browserBuffer.writeBigUInt64LE.bind(browserBuffer, 1337n, 9)).to.throw();
+			expect(browserBuffer.writeBigUInt64LE.bind(browserBuffer, BigInt("1337"), 9)).to.throw();
 		});
 	});
 	describe("Buffer#writeDoubleBE", function(){
@@ -1651,6 +1652,39 @@ describe("Browser Buffer shim", function(){
 		it("throws an error if byteLength is unspecified", function(){
 			const browserBuffer = BrowserBuffer.alloc(10, 0xff);
 			expect(browserBuffer.writeUIntLE.bind(browserBuffer, 1337, 0)).to.throw();
+		});
+	});
+	describe("Buffer.copyBytesFrom", function(){
+		it("works", function(){
+			const u8 = new Uint8Array([0, 0x11, 0x22]);
+			let buf = BrowserBuffer.copyBytesFrom(u8, 1, 1);
+			expect(buf).to.deep.equal(BrowserBuffer.from([0x11]));
+			u8[1] = 0;
+			expect(buf).to.deep.equal(BrowserBuffer.from([0x11]));
+
+			const u16 = new Uint16Array([0, 0xaaff, 0x1337]);
+			buf = BrowserBuffer.copyBytesFrom(u16, 1, 1);
+			expect(buf).to.deep.equal(BrowserBuffer.from([0xff, 0xaa]));
+			u16[1] = 0;
+			expect(buf).to.deep.equal(BrowserBuffer.from([0xff, 0xaa]));
+
+			const u32 = new Uint32Array([0, 0xaaff, 0x1337]);
+			buf = BrowserBuffer.copyBytesFrom(u32, 1, 1);
+			expect(buf).to.deep.equal(BrowserBuffer.from([0xff, 0xaa, 0x00, 0x00]));
+			u16[1] = 0;
+			expect(buf).to.deep.equal(BrowserBuffer.from([0xff, 0xaa, 0x00, 0x00]));
+
+			const f64 = new Float64Array([0, 0xaaff, 0x1337]);
+			buf = BrowserBuffer.copyBytesFrom(f64, 1, 1);
+			expect(buf).to.deep.equal(BrowserBuffer.from([0, 0, 0, 0, 224, 95, 229, 64]));
+			u16[1] = 0;
+			expect(buf).to.deep.equal(BrowserBuffer.from([0, 0, 0, 0, 224, 95, 229, 64]));
+
+			const u8Too = new Uint8Array([0, 0x11, 0x22]);
+			buf = BrowserBuffer.copyBytesFrom(u8Too);
+			expect(buf).to.deep.equal(BrowserBuffer.from([0, 0x11, 0x22]));
+			u8[1] = 0;
+			expect(buf).to.deep.equal(BrowserBuffer.from([0, 0x11, 0x22]));
 		});
 	});
 });

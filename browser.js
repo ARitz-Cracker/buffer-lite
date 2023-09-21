@@ -1,4 +1,7 @@
 /* eslint-disable no-magic-numbers */
+/* global BigInt */
+/* global BigInt64Array */
+/* global BigUint64Array */
 const DEFAULT_POOL_SIZE = 8192;
 const validEncodings = new Set([
 	"utf8",
@@ -760,9 +763,10 @@ Buffer.alloc = function(size, fill = 0, encoding = "utf8"){
 	}
 	const newBuff = bufferPool.subarray(bufferPoolIndex, bufferPoolIndex + size);
 	bufferPoolIndex += size;
-	if((bufferPoolIndex % 4) !== 0){
-		// Keep the byte offsets a multiple of 4 so Buffer.prototype.equals is faster
-		bufferPoolIndex += 4 - (bufferPoolIndex % 4);
+	if((bufferPoolIndex % 8) !== 0){
+		/* Keep the byte offsets a multiple of 4 so Buffer.prototype.equals is faster
+		   Having it be a multiple of 8 will also allow for easy unions with the 64-bit array view types */
+		bufferPoolIndex += 8 - (bufferPoolIndex % 8);
 	}
 	return fillBufferIfNotZero(newBuff, fill, encoding);
 };
@@ -919,6 +923,44 @@ Buffer.from = function(arrayOrBufferOrString, byteOffsetOrEncoding, lengthOrEnco
 	}
 	throw new TypeError(invalidThingMessage);
 };
+
+Buffer.copyBytesFrom = function(view, offset = 0, length = view.length - offset){
+	const viewAlignment = (() => {
+		if(
+			view instanceof Uint8Array ||
+			view instanceof Int8Array ||
+			view instanceof Uint8ClampedArray
+		){
+			return 1;
+		}
+		if(
+			view instanceof Int16Array ||
+			view instanceof Uint16Array
+		){
+			return 2;
+		}
+		if(
+			view instanceof Int32Array ||
+			view instanceof Uint32Array ||
+			view instanceof Float32Array
+		){
+			return 4;
+		}
+		/* istanbul ignore next */
+		if(
+			view instanceof Float64Array ||
+			(typeof BigInt64Array !== "undefined" && view instanceof BigInt64Array) ||
+			(typeof BigInt64Array !== "undefined" && view instanceof BigUint64Array)
+		){
+			return 8;
+		}
+		/* istanbul ignore next */
+		return 1;
+	})();
+	const newView = new Uint8Array(view.buffer, view.byteOffset + offset * viewAlignment, length * viewAlignment);
+	return Buffer.from(newView); // Creates a new Buffer with contents copied from newView
+};
+
 Buffer.isBuffer = function(obj){
 	return obj instanceof Buffer;
 };

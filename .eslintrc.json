@@ -1,12 +1,12 @@
 {
     "parserOptions": {
-		"ecmaVersion": 11,
+		"ecmaVersion": 8,
 		"sourceType": "script"
 	},
 	"env": {
 		"browser": true,
 		"node": true,
-		"es2020": true,
+		"es2017": true,
 		"mocha": true
 	},
 	"globals": {
