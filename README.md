@@ -12,7 +12,7 @@ This package was originally created in 2020 under the belief that the standard `
 
 ## What version of NodeJS did you write this in mind?
 
-At the time of writing, `buffer-lite` is feature-compatible with NodeJS v20.7.0. However, it only provides the `Buffer` class, and does not provide the other functions/constants provided by `node:buffer`.
+At the time of writing, `buffer-lite` is feature-compatible with NodeJS v20.7.0. However, it only provides the `Buffer` class, and does not provide the other functions/constants provided by `node:buffer`. It also currently doesn't implement the `inspect` method.
 
 ## What's the oldest ECMAScript version this thing works with?
 

@@ -5,7 +5,7 @@ const chai = require("chai");
 chai.use(require("chai-as-promised"));
 chai.use(require("chai-eventemitter"));
 const expect = chai.expect;
-const BrowserBuffer = require("../browser");
+const {Buffer: BrowserBuffer, SlowBuffer: BrowserSlowBuffer} = require("../browser");
 
 // These would normally exist on the browser
 globalThis.atob = function(b64Str){
@@ -1685,6 +1685,14 @@ describe("Browser Buffer shim", function(){
 			expect(buf).to.deep.equal(BrowserBuffer.from([0, 0x11, 0x22]));
 			u8[1] = 0;
 			expect(buf).to.deep.equal(BrowserBuffer.from([0, 0x11, 0x22]));
+		});
+	});
+	describe("Deprecated SlowBuffer constructor", function(){
+		it("works", function(){
+			// @ts-ignore
+			const buf = new BrowserSlowBuffer(2);
+			expect(buf).to.be.instanceOf(BrowserBuffer);
+			expect(buf.length).to.eq(2);
 		});
 	});
 });

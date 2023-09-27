@@ -972,8 +972,12 @@ Buffer.isEncoding = function(encoding){
 };
 Buffer.poolSize = DEFAULT_POOL_SIZE;
 
-module.exports = Buffer;
-/* istanbul ignore next */
-if(globalThis.Buffer === undefined){
-	globalThis.Buffer = Buffer;
-}
+module.exports = {
+	Buffer,
+	// eslint-disable-next-line object-shorthand
+	SlowBuffer: function(len){
+		return Buffer.alloc(len);
+	},
+	INSPECT_MAX_BYTES: 0,
+	kMaxLength: 0x7fffffff
+};
