@@ -10,6 +10,7 @@ const validEncodings = new Set([
 	"utf-16le",
 	"latin1",
 	"base64",
+	"base64url",
 	"hex",
 	"ascii",
 	"binary", // alias of latin1
@@ -498,6 +499,16 @@ class Buffer extends Uint8Array {
 				return stringFromCharCodes(buf.map(v => v & 127));
 			case "base64":
 				return btoa(stringFromCharCodes(buf));
+			case "base64url":{
+				const str = btoa(stringFromCharCodes(buf));
+				let newLen = str.length;
+				while(newLen > 1 && str[newLen - 1] === "="){
+					newLen -= 1;
+				}
+				return str.substring(0, newLen)
+					.replace(/\+/g, "-")
+					.replace(/\//g, "_");
+			}
 			case "hex":{
 				let str = "";
 				for(let i = 0; i < buf.length; i += 1){
@@ -831,6 +842,7 @@ Buffer.byteLength = function(thing, encoding = "utf8"){
 			case "ucs2":
 				return thing.length * 2;
 			case "base64":
+			case "base64url":
 				return calculateDecodedBase64Length(thing);
 			case "hex":{
 				return thing.length / 2;
@@ -909,7 +921,17 @@ Buffer.from = function(arrayOrBufferOrString, byteOffsetOrEncoding, lengthOrEnco
 			case "ascii":
 				return new Buffer([...arrayOrBufferOrString].map(v => v.charCodeAt(0)));
 			case "base64":
-				return new Buffer([...atob(arrayOrBufferOrString)].map(v => v.charCodeAt(0)));
+			case "base64url":
+				// NodeJS parses "base64" and "base64url" equivalently... So we have to replicate this behaviour
+				return new Buffer(
+					[
+						...atob(
+							arrayOrBufferOrString
+								.replace(/-/g, "+")
+								.replace(/_/g, "/")
+						)
+					].map(v => v.charCodeAt(0))
+				);
 			case "hex":{
 				const newBuffer = new Buffer(arrayOrBufferOrString.length / 2);
 				for(let i = 0; i < arrayOrBufferOrString.length; i += 2){

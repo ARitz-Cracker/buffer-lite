@@ -131,6 +131,9 @@ describe("Browser Buffer shim", function(){
 			expect(
 				BrowserBuffer.byteLength("3lNtsw==", "base64")
 			).to.equal(4);
+			expect(
+				BrowserBuffer.byteLength("3lNtsw", "base64url")
+			).to.equal(4);
 		});
 		it("calculates the decoded byte length of hex strings", function(){
 			expect(
@@ -434,6 +437,24 @@ describe("Browser Buffer shim", function(){
 				BrowserBuffer.from([1, 2, 3, 4])
 			);
 		});
+		it("can decode base64url strings", function(){
+			expect(
+				BrowserBuffer.from("Hello-_-World-8", "base64url")
+			).to.deep.equal(
+				BrowserBuffer.from([29, 233, 101, 163, 239, 254, 90, 138, 229, 119, 239])
+			);
+			// NodeJS has this behaviour too, so we gotta roll with it
+			expect(
+				BrowserBuffer.from("Hello-_-World-8", "base64")
+			).to.deep.equal(
+				BrowserBuffer.from([29, 233, 101, 163, 239, 254, 90, 138, 229, 119, 239])
+			);
+			expect(
+				BrowserBuffer.from("Hello+/+World+8=", "base64url")
+			).to.deep.equal(
+				BrowserBuffer.from([29, 233, 101, 163, 239, 254, 90, 138, 229, 119, 239])
+			);
+		});
 		it("can decode hex strings", function(){
 			expect(
 				BrowserBuffer.from("0102030f", "hex")
@@ -482,7 +503,8 @@ describe("Browser Buffer shim", function(){
 					"binary",
 					"latin1",
 					"base64",
-					"base32"
+					"base32",
+					"base64url"
 				].map(str => BrowserBuffer.isEncoding(str))
 			).to.deep.equal([
 				true,
@@ -496,7 +518,8 @@ describe("Browser Buffer shim", function(){
 				true,
 				true,
 				true,
-				false
+				false,
+				true
 			]);
 		});
 		it("is case insensitive", function(){
@@ -513,9 +536,11 @@ describe("Browser Buffer shim", function(){
 					"BINARY",
 					"LATIN1",
 					"BASE64",
-					"bAsE64"
+					"bAsE64",
+					"Base64Url"
 				].map(str => BrowserBuffer.isEncoding(str))
 			).to.deep.equal([
+				true,
 				true,
 				true,
 				true,
@@ -1286,6 +1311,11 @@ describe("Browser Buffer shim", function(){
 		it("encodes to base64", function(){
 			const asciibuf = BrowserBuffer.from([104, 233, 108, 108, 111]);
 			expect(asciibuf.toString("base64")).to.equal("aOlsbG8=");
+		});
+		it("encodes to base64url", function(){
+			const testBuf = BrowserBuffer.from([29, 233, 101, 163, 239, 254, 90, 138, 229, 119, 239]);
+			// "normal" base64 would be "Hello+/+World+8=". Note the lack of padding
+			expect(testBuf.toString("base64url")).to.equal("Hello-_-World-8");
 		});
 		it("encodes to hex", function(){
 			const asciibuf = BrowserBuffer.from([104, 233, 108, 108, 111, 7]);

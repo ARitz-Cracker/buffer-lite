@@ -8,7 +8,7 @@
 		"url": "https://github.com/ARitz-Cracker/buffer-lite/issues"
 	},
 	"dependencies": {},
-	"description": "Lightweight buffer library for the browser",
+	"description": "Lightweight buffer library for the browser (Now with Base64URL support!)",
 	"devDependencies": {
 		"chai": "^4.2.0",
 		"chai-as-promised": "^7.1.1",
@@ -37,8 +37,6 @@
 		"ci:after": "nyc report --reporter=text-lcov | coveralls",
 		"prepublishOnly": "npm run test:final"
 	},
-	"version": "2.0.1",
-	"browserRequirifier": {
-		"include": []
-	}
+	"version": "2.1.0",
+	"keywords": ["arraybuffer", "browser", "browserify", "buffer", "compatible", "dataview", "uint8array", "base64", "base64url"]
 }
